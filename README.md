@@ -18,9 +18,9 @@ The original Tamagotchi has the following functionalities:
 
 
 # What is Tamapy
-This repo hold the python code for my take on a virtual pet lightly based on Tamagotchi, but with less functions.
+This repo holds the python code for my take on a virtual pet based on Tamagotchi, but simpler.
 
-This is a "play around with python" personal project, do not expect a fun tamagotchi or super advanced options.
+This is a "play around with python" personal project, do not expect super advanced options.
 
 If you want to play with a real Tamagotchi you can buy one, since they survived through the 90s to our days and are still available for purchase!
 

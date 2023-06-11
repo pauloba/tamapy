@@ -1,28 +1,31 @@
 from datetime import date
 from datetime import datetime
 import linecache
+import fileinput
+import os
 
 def lay_egg(n):
     # datetime object containing current date and time
     today = datetime.now()    
     # dd/mm/YY H:M:S
-    dt_string = today.strftime("%d/%m/%Y %H:%M:%S")
+    date_time = today.strftime("%d/%m/%Y %H:%M:%S")
     name = n
     age = 0
-    level = 0
+    sick = 0
     alive = True
     happy = 5
-    hungry = 5
-    dirty = 5
-    f = open('tamapy_db.txt', 'w')
-    f.write('NAME ' + name + '\n')
-    f.write('AGE ' + str(age) + '\n')
-    f.write('LEVEL ' + str(level) + '\n')
-    f.write('ALIVE ' + str(alive) + '\n')
-    f.write('HAPPY ' + str(happy) + '\n')
-    f.write('HUNGRY ' + str(hungry) + '\n')
-    f.write('DIRTY ' + str(dirty) + '\n')
-    f.write('START ' + dt_string + '\n')
+    full = 5
+    clean = 5
+    f = open("tamapy_db.txt", "w")
+    f.write("0 NAME " + name + "\n")
+    f.write("1 AGE " + str(age) + "\n")
+    f.write("2 SICK " + str(level) + "\n")
+    f.write("3 ALIVE " + str(alive) + "\n")
+    f.write("4 HAPPY " + str(happy) + "\n")
+    f.write("5 FULL " + str(full) + "\n")
+    f.write("6 CLEAN " + str(clean) + "\n")
+    f.write("7 START " + date_time + "\n")
+    f.write("8 NOW " + date_time + "\n")
     f.closed
 
 def print_squares(n,stat_name):
@@ -30,97 +33,238 @@ def print_squares(n,stat_name):
         case 0:
             if stat_name=="happy":
                 print("HAPPY □□□□□")
-            if stat_name=="hungry":
+            if stat_name=="full":
                 print("FULL  □□□□□")
-            if stat_name=="dirt":
+            if stat_name=="clean":
                 print("CLEAN □□□□□")           
         case 1:
             if stat_name=="happy":
                 print("HAPPY ■□□□□")
-            if stat_name=="hungry":
+            if stat_name=="full":
                 print("FULL  ■□□□□")
-            if stat_name=="dirt":
-                print("CLEAN ■□□□□")       
+            if stat_name=="clean":
+                print("CLEAN ■□□□□")   
+            if stat_name=="sick":
+                print("☠")
         case 2:
             if stat_name=="happy":
                 print("HAPPY ■■□□□")
-            if stat_name=="hungry":
+            if stat_name=="full":
                 print("FULL  ■■□□□")
-            if stat_name=="dirt":
+            if stat_name=="clean":
                 print("CLEAN ■■□□□")
+            if stat_name=="sick":
+                print("☠☠")
         case 3:
             if stat_name=="happy":
                 print("HAPPY ■■■□□")
-            if stat_name=="hungry":
+            if stat_name=="full":
                 print("FULL  ■■■□□")
-            if stat_name=="dirt":
-                print("CLEAN ■■■□□")  
+            if stat_name=="clean":
+                print("CLEAN ■■■□□")
+            if stat_name=="sick":
+                print("☠☠☠")                 
         case 4:
             if stat_name=="happy":
                 print("HAPPY ■■■■□")
-            if stat_name=="hungry":
+            if stat_name=="full":
                 print("FULL  ■■■■□")  
-            if stat_name=="dirt":
-                print("CLEAN ■■■■□")  
+            if stat_name=="clean":
+                print("CLEAN ■■■■□")
+            if stat_name=="sick":
+                print("☠☠☠☠")  
         case 5:
             if stat_name=="happy":
                 print("HAPPY ■■■■■")
-            if stat_name=="hungry":
+            if stat_name=="full":
                 print("FULL  ■■■■■")
-            if stat_name=="dirt":
+            if stat_name=="clean":
                 print("CLEAN ■■■■■")
+            if stat_name=="sick":
+                print("☠☠☠☠☠")
 
 def get_stats():
-    f = open('tamapy_db.txt', 'r')
-    for line in f:
-        if line[2]=='P': #HAPPY
-            happy=int(line[6])
-            print_squares(happy,"happy")
-        elif line[2]=='N': #HUNGRY
-            hungry=int(line[7])
-            print_squares(hungry,"hungry")
-        elif line[2]=='R': #DIRTY
-            dirt=int(line[6])
-            print_squares(dirt,"dirt")
-        elif line[2]=='M': #NAME
-            print(line)
-    f.close()
+    file = open("tamapy_db.txt", "r")
+    for line in file:
+        if line[0]=="0": #NAME
+            print(line[2:]) # Remove 2 first characters that are the line number
+        elif line[0]=="2" and line[7]>="0": #SICK
+            sickness=int(line[7])
+            print_squares(sickness,"sick")
+        elif line[0]=="4": #HAPPY
+            happyness=int(line[8])
+            print_squares(happyness,"happy")
+        elif line[0]=="5": #FULL
+            fullness=int(line[7])
+            print_squares(fullness,"full")
+        elif line[0]=="6": #CLEAN
+            cleanness=int(line[8])
+            print_squares(cleanness,"clean")
+    file.close()
+
 
 def play():
     print("Playing")
 
+
 def feed():
     print("Feeding")
-    f = open('./tamapy_db.txt', 'r+')
-    f.seek(5)
-    print(f)
-    f.close()
+    file_in = open("tamapy_db.txt", "r")
+    file_out = open("tamapy_db.tmp", "wt") 
+    for line in file_in:
+        if line[0]=="5": #FULL STATUS
+            fullness_old = int( line[7] )
+            if 0 <= fullness_old < 5: # Feed only if value between 0 and 4
+                fullness_new = fullness_old+1
+                old_str = "5 FULL " + str(fullness_old)
+                new_str = "5 FULL " + str(fullness_new)
+                file_out.write( line.replace(old_str, new_str) )     
+            elif fullness_old == 5: # If fullness already at MAX do not feed
+                file_out.write(line)           
+        elif line[0]!="5":
+            file_out.write(line)
+    file_in.close()
+    file_out.close()
+    os.remove("/home/pau/src/tamapy/tamapy_db.txt")
+    os.rename("/home/pau/src/tamapy/tamapy_db.tmp","tamapy_db.txt")
 
-    '''
-    for line in f:
-        if line[2]=='N': #HUNGRY
-            value=int(line[7])
-            new_value=value+1
-            f.write('HUNGRY ' + str(new_value) + '\n')
-    '''        
-            
+def poop():
+    print("Pooping")
+    file_in = open("tamapy_db.txt", "r")
+    file_out = open("tamapy_db.tmp", "wt") 
+    for line in file_in:
+        # DECREASE FULLNESS BY 1 WHEN POOPING
+        if line[0]=="5": #FULL STATUS
+            fullness_old = int( line[7] )
+            if 0 <= fullness_old <= 5: # Poop only if value between 1 and 5
+                fullness_new = (fullness_old-1) if fullness_old > 0 else 0
+                old_str = "5 FULL " + str(fullness_old)
+                new_str = "5 FULL " + str(fullness_new)
+                file_out.write( line.replace(old_str, new_str) )     
+            elif fullness_old == 0: # If fullness at MIN do not decrease FULL
+                file_out.write(line)
+        # DECREEASE CLEANNESS BY 1 WHEN POOPING
+        if line[0]=="6": #CLEAN STATUS
+            cleanness_old = int( line[8] )
+            if 0 <= cleanness_old <=5: # Dirt only if value between 1-5
+                cleanness_new = (cleanness_old-1) if cleanness_old > 0 else 0
+                old_str = "6 CLEAN " + str(cleanness_old)
+                new_str = "6 CLEAN " + str(cleanness_new)
+                file_out.write( line.replace(old_str, new_str) ) 
+        elif line[0]!="5" and line[0]!="6":
+            file_out.write(line)
+    file_in.close()
+    file_out.close()
+    os.remove("/home/pau/src/tamapy/tamapy_db.txt")
+    os.rename("/home/pau/src/tamapy/tamapy_db.tmp","tamapy_db.txt")
 
 def clean():
     print("Cleaning")
+    file_in = open("tamapy_db.txt", "r")
+    file_out = open("tamapy_db.tmp", "wt") 
+    for line in file_in:
+        # INCREASE CLEANNESS BY 1
+        if line[0]=="6": #CLEAN STATUS
+            cleanness_old = int( line[8] )
+            if 0 <= cleanness_old < 5: # Clean only if value between 0 and 4
+                cleanness_new = (cleanness_old+1) if cleanness_old <5 else 5
+                old_str = "6 CLEAN " + str(cleanness_old)
+                new_str = "6 CLEAN " + str(cleanness_new)
+                file_out.write( line.replace(old_str, new_str) )    
+            if cleanness_old == 5: # If cleanness at MAX do not clean
+                file_out.write(line) 
+        elif line[0]!="6":
+            file_out.write(line)
+    file_in.close()
+    file_out.close()
+    os.remove("/home/pau/src/tamapy/tamapy_db.txt")
+    os.rename("/home/pau/src/tamapy/tamapy_db.tmp","tamapy_db.txt")
 
-    
+def get_sick():
+    print("Getting sick")
+    file_in = open("tamapy_db.txt", "r")
+    file_out = open("tamapy_db.tmp", "wt") 
+    for line in file_in:
+        if line[0]=="2": #SICK STATUS
+            sickness_old = int( line[7] )
+            if 0 <= sickness_old < 5: # Get sick only if value between 0 and 4
+                sickness_new = sickness_old+1
+                old_str = "5 FULL " + str(sickness_old)
+                new_str = "5 FULL " + str(sickness_new)
+                file_out.write( line.replace(old_str, new_str) )     
+            elif sickness_old == 5: # If sickness already at MAX don't increase
+                file_out.write(line)           
+        elif line[0]!="2":
+            file_out.write(line)
+    file_in.close()
+    file_out.close()
+    os.remove("/home/pau/src/tamapy/tamapy_db.txt")
+    os.rename("/home/pau/src/tamapy/tamapy_db.tmp","tamapy_db.txt")
+
+def take_medicine():
+    print("Taking medicine")
 
 def main():
-#    lay_egg("Pau")
+#    linecache.clearcache()
+#    lay_egg("★☆. · · ·.☆★BiZC0CHiT0oo0★☆. · · ·.☆★")
+
+
+# TEST GET_SICK
     get_stats()
-#    feed()
-#    get_stats()
-    #f = open('./tamapy_db.txt', 'r+')
-    line = linecache.getline('tamapy_db.txt', 5)
-    print(line)
-    linecache.clearcache()
+    get_sick()
+    get_stats()
+    get_sick()
+    get_stats()
+    get_sick()
+    get_stats()
+    get_sick()
+    get_stats()
+    get_sick()
+    get_stats()
+    get_sick()
+    get_stats()
+    get_sick()
+    get_stats()
+    get_sick()
+# TEST CLEAN
+    '''
+    get_stats()
+    clean()
+    get_stats()
+    clean()
+    get_stats()
+    clean()
+    get_stats()
+    clean()
+    get_stats()
+    clean()
+    get_stats()
+    clean()
+    get_stats()
+    clean()
+    get_stats()
+    '''
 
-
+# TEST POOP
+    '''
+    get_stats()
+    feed()
+    get_stats()
+    poop()
+    get_stats()
+    poop()
+    get_stats()
+    poop()
+    get_stats()
+    poop()
+    get_stats()
+    poop()
+    get_stats()
+    poop()
+    get_stats()
+    poop()
+    get_stats()
+    '''
 
 if __name__ == "__main__":
     main()
