@@ -24,3 +24,15 @@ This is a "play around with python" personal project, do not expect super advanc
 
 If you want to play with a real Tamagotchi you can buy one, since they survived through the 90s to our days and are still available for purchase!
 
+# How to play
+You need to install python3 on your system and the following libraries using pip:
+
+`pip install requests datetime`
+
+Make sure to install these libraries before running the program.
+
+If you want to play I won't ruin the fun explaining the logic here, but of course you can have a look at the code if you want to.
+
+To play, run the command:
+
+`python3 tamapy.py`
