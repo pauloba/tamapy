@@ -1,8 +1,12 @@
-#from datetime import date
+from dateutil.relativedelta import relativedelta
+from datetime import date
 from datetime import datetime
 #import linecache
 #import fileinput
 import os
+import time
+
+
 
 '''
 FUNCTION lay_egg(pet_name str)
@@ -12,41 +16,33 @@ FUNCTION lay_egg(pet_name str)
 - POO is a hidden value ranges from 0-6.
 - From main() when POO=6 the poop() function is called.
 '''
-def lay_egg(n):
+def lay_egg(pet_name):
     # datetime object containing current date and time
     today = datetime.now()    
     # dd/mm/YY H:M:S
     date_time = today.strftime("%d/%m/%Y %H:%M:%S")
-    name = n
-    age = 0
-    alive = True
-    healthy = 0
-    happy = 5
-    full = 5
-    clean = 5
-    poo = 0
     f = open("tamapy_db.txt", "w")
-    f.write("0 NAME " + name + "\n")
-    f.write("1 AGE " + str(age) + "\n")
-    f.write("2 ALIVE " + str(alive) + "\n")
-    f.write("3 HEALTH " + str(healthy) + "\n")
-    f.write("4 HAPPY " + str(happy) + "\n")
-    f.write("5 FULL " + str(full) + "\n")
-    f.write("6 CLEAN " + str(clean) + "\n")
-    f.write("7 POO " + str(poo) + "\n")
+    f.write("0 NAME " + pet_name + "\n")
+    f.write("1 AGE " + "0" + "\n")
+    f.write("2 ALIVE " + "T" + "\n")
+    f.write("3 HEALTH " + "5" + "\n")
+    f.write("4 HAPPY " + "5" + "\n")
+    f.write("5 FULL " + "5" + "\n")
+    f.write("6 CLEAN " + "5" + "\n")
+    f.write("7 POO " + "0" + "\n")
     f.write("8 START " + date_time + "\n")
-    f.write("9 NOW " + date_time + "\n")
-    f.closed
+    f.write("9 LIGHT " + "T" + "\n")
+    f.close()
 
 '''
-FUNCTION print_squares(n int, stat_name str)
+FUNCTION print_squares(stat_value int, stat_name str)
 ----------------
 - Prints the values with empty or full squares for stats
 - Stats always shown: HAPPY, FULL, CLEAN.
 - HEALTHY only shown when <=3.
 '''
-def print_squares(n,stat_name):
-    match n:
+def print_squares(stat_value,stat_name):
+    match stat_name:
         case 0:
             if stat_name=="happy":
                 print("🔴 HAPPY   □□□□□")
@@ -242,7 +238,7 @@ FUNCTION get_sick()
 - Decreases HEALTH by 1.
 '''
 def get_sick():
-#    print("Getting sick")
+    print("Getting sick")
     file_in = open("tamapy_db.txt", "r")
     file_out = open("tamapy_db.tmp", "wt") 
     for line in file_in:
@@ -269,29 +265,156 @@ FUNCTION take_medicine()
 '''
 def take_medicine():
     print("Taking medicine")
- #  TO DO
+    file_in = open("tamapy_db.txt", "r")
+    file_out = open("tamapy_db.tmp", "wt") 
+    for line in file_in:
+        if line[0]=="3": #HEALTH STATUS
+            healthyness_old = int( line[9] )
+            if 0 <= healthyness_old <= 5: # Cure only if value between 0 and 4
+                healthyness_new = (healthyness_old+1) if healthyness_old>4 else 5
+                old_str = "3 HEALTH " + str(healthyness_old)
+                new_str = "3 HEALTH " + str(healthyness_new)
+                file_out.write( line.replace(old_str, new_str) )     
+            elif healthyness_old == 5: # If health already at MAX don't increase
+                file_out.write(line)           
+        elif line[0]!="3":
+            file_out.write(line)
+    file_in.close()
+    file_out.close()
+    os.remove("/home/pau/src/tamapy/tamapy_db.txt")
+    os.rename("/home/pau/src/tamapy/tamapy_db.tmp","tamapy_db.txt")
 
+'''
+FUNCTION calculate_age()
+-------------------------
+Writes do tamapy_db.txt
+updates the AGE.
+Tamapy age correlates to human age.
+'''
+def calculate_age():
+    print("Calculating age")
+    
+    file_in = open("tamapy_db.txt", "r")
+    #file_out = open("tamapy_db.tmp", "wt") 
+    for line in file_in:
+        if line[0]=="8": #Tamapy birth date
+            birth_line = line   
+    file_in.close()
+    birth_date = birth_line.split(',')
+    print("birth_line    " + birth_line + "\n")
+    #print("birth_date    " + birth_date + "\n")
+    print("birth_date[0]    " + birth_date[0] + "\n")
+ #   print("birth_date[1]    " + birth_date[1] + "\n")
+ #   print("birth_date[2]    " + birth_date[2] + "\n")
+#    print("birth_date[3]    " + birth_date[3] + "\n")
+
+    today = date.today()
+    age = relativedelta(today, birth_date[2])
+    return age.years
+    # Test the function
+    birth_date = date(1997, 2, 3)
+    age = calculate_age(birth_date)
+    print(f"Age in years: {age}")    
+
+'''
+FUNCTION sleep()
+-------------------------
+Writes do tamapy_db.txt:
+- Shows message that the character is sleeping.
+- Switches light on "after" sleeping.
+- If light OFF increases health by 1.
+- If light ON decreases health by 1.
+'''
 def sleep():
-    print("Sleeping")
-# TO DO
+    file_in = open("tamapy_db.txt", "r")
+    file_out = open("tamapy_db.tmp", "wt") 
+    for line in file_in:
+        if line[0]=="0": # Line with the NAME
+            print(line[6:] + "Is sleeping ...")
+            time.sleep(5)    
+            print("  Zzz... zzz... zzz...")
+            time.sleep(5)
+            print("  Zzz... zzz... zzz...")
+        if line[0]=="9": # Line with the LIGHT STATUS
+            light_status = line[8]
+            light_on = "T"
+            old_str = "9 LIGHT " + str(light_status)
+            new_str = "9 LIGHT " + str(light_on)
+            file_out.write( line.replace(old_str, new_str) )    
+        elif line[0]=="3" and light_status=="T": # Get sick only if light ON
+            healthyness_old = int(line[9])
+            healthyness_new = (healthyness_old-1) if healthyness_old>0 else 0
+            old_str = "3 HEALTH " + str(healthyness_old)
+            new_str = "3 HEALTH " + str(healthyness_new)
+            file_out.write( line.replace(old_str, new_str) )     
+            if healthyness_old == 0: # If health already at MIN don't decrease
+                file_out.write(line)           
+        elif line[0]!="3":
+            file_out.write(line)
+    file_in.close()
+    file_out.close()
+    os.remove("/home/pau/src/tamapy/tamapy_db.txt")
+    os.rename("/home/pau/src/tamapy/tamapy_db.tmp","tamapy_db.txt")
 
-def switch_off_light():
+
+'''
+FUNCTION light_off()
+-------------------------
+Writes do tamapy_db.txt:
+- Updates LIGTH to "T" (true).
+'''
+def light_off():
     print("Switching light off")
-# TO DO
+    file_in = open("tamapy_db.txt", "r")
+    file_out = open("tamapy_db.tmp", "wt") 
+    for line in file_in:
+        if line[0]=="9": #Light STATUS
+            light_old = line[8]
+            if light_old=="F": # Switch off only if LIGHT==T; T means true
+                light_new = "T"
+                old_str = "6 CLEAN " + str(light_old)
+                new_str = "6 CLEAN " + str(light_new)
+                file_out.write( line.replace(old_str, new_str) )    
+            if light_old =="T": # If light already ON do not switch ON
+                file_out.write(line) 
+        elif line[0]!="6":
+            file_out.write(line)
+    file_in.close()
+    file_out.close()
+    os.remove("/home/pau/src/tamapy/tamapy_db.txt")
+    os.rename("/home/pau/src/tamapy/tamapy_db.tmp","tamapy_db.txt")
+
 
 '''
 
 - When POO==6 poo() function is called.
 
 '''
+
+'''
+TO DO 
+- clear screen
+- menu for actions
+- generic home directory path
+- fix calculate age()
+- fix sleep()
+- create test suite
+'''
+
 def main():
+
+
 #    linecache.clearcache()
 #    lay_egg("★☆. · · ·.☆★BiZC0CHiT0oo0★☆. · · ·.☆★")
 # Clearing the Screen
 #   os.system('cls')
 
+    sleep()
+
+#    calculate_age()
+
 # TEST GET_SICK
-    
+    '''
     get_stats()
     get_sick()
     get_stats()
@@ -308,7 +431,7 @@ def main():
     get_sick()
     get_stats()
     get_sick()
-    
+    ''' 
 # TEST CLEAN
     '''
     get_stats()
