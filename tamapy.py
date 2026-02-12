@@ -1,476 +1,271 @@
-from dateutil.relativedelta import relativedelta
-from datetime import date
-from datetime import datetime
-#import linecache
-#import fileinput
+import json
 import os
-import time
+from datetime import datetime, timedelta
+
+SAVE_FILE = "tamapy_state.json"
 
 
+def print_squares(stat_value, stat_name):
+    """
+    Render a bar from 0–6 for a given stat name.
+    stat_value: int in [0,6]
+    stat_name: one of "happy", "full", "clean", "health"
+    """
+    stat_value = max(0, min(6, stat_value))
 
-'''
-FUNCTION lay_egg(pet_name str)
-------------------------------
-- Initializes name, age, alive, healthy, happy, full, clean, poo.
-- Values are stored in a text file for persitence.
-- POO is a hidden value ranges from 0-6.
-- From main() when POO=6 the poop() function is called.
-'''
-def lay_egg(pet_name):
-    # datetime object containing current date and time
-    today = datetime.now()    
-    # dd/mm/YY H:M:S
-    date_time = today.strftime("%d/%m/%Y %H:%M:%S")
-    f = open("tamapy_db.txt", "w")
-    f.write("0 NAME " + pet_name + "\n")
-    f.write("1 AGE " + "0" + "\n")
-    f.write("2 ALIVE " + "T" + "\n")
-    f.write("3 HEALTH " + "5" + "\n")
-    f.write("4 HAPPY " + "5" + "\n")
-    f.write("5 FULL " + "5" + "\n")
-    f.write("6 CLEAN " + "5" + "\n")
-    f.write("7 POO " + "0" + "\n")
-    f.write("8 START " + date_time + "\n")
-    f.write("9 LIGHT " + "T" + "\n")
-    f.close()
+    label_map = {
+        "happy": "HAPPY",
+        "full": "FULL",
+        "clean": "CLEAN",
+        "health": "HEALTHY",
+    }
+    label = label_map.get(stat_name, stat_name.upper())
 
-'''
-FUNCTION print_squares(stat_value int, stat_name str)
-----------------
-- Prints the values with empty or full squares for stats
-- Stats always shown: HAPPY, FULL, CLEAN.
-- HEALTHY only shown when <=3.
-'''
-def print_squares(stat_value,stat_name):
-    match stat_name:
-        case 0:
-            if stat_name=="happy":
-                print("🔴 HAPPY   □□□□□")
-            if stat_name=="full":
-                print("🔴 FULL    □□□□□")
-            if stat_name=="clean":
-                print("🔴 CLEAN   □□□□□")
-            if stat_name=="health":
-                print("🔴 HEALTHY □□□□□")          
-        case 1:
-            if stat_name=="happy":
-                print("🔴 HAPPY   ■□□□□")
-            if stat_name=="full":
-                print("🔴 FULL    ■□□□□")
-            if stat_name=="clean":
-                print("🔴 CLEAN   ■□□□□")   
-            if stat_name=="health":
-                print("🔴 HEALTHY ■□□□□")
-        case 2:
-            if stat_name=="happy":
-                print("🔴 HAPPY   ■■□□□")
-            if stat_name=="full":
-                print("🔴 FULL    ■■□□□")
-            if stat_name=="clean":
-                print("🔴 CLEAN   ■■□□□")
-            if stat_name=="health":
-                print("🔴 HEALTHY ■■□□□")
-        case 3:
-            if stat_name=="happy":
-                print("🟠 HAPPY   ■■■□□")
-            if stat_name=="full":
-                print("🟠 FULL    ■■■□□")
-            if stat_name=="clean":
-                print("🟠 CLEAN   ■■■□□")
-            if stat_name=="health":
-                print("🟠 HEALTHY ■■■□□")                 
-        case 4:
-            if stat_name=="happy":
-                print("🟠 HAPPY   ■■■■□")
-            if stat_name=="full":
-                print("🟠 FULL    ■■■■□")  
-            if stat_name=="clean":
-                print("🟠 CLEAN   ■■■■□")
-#            if stat_name=="health":
-#                print("🟠 HEALTHY ■■■■□")
-        case 5:
-            if stat_name=="happy":
-                print("🟢 HAPPY   ■■■■■")
-            if stat_name=="full":
-                print("🟢 FULL    ■■■■■")
-            if stat_name=="clean":
-                print("🟢 CLEAN   ■■■■■")
-#            if stat_name=="health":
-#                print("🟢 HEALTHY ■■■■■")
+    filled = "■" * stat_value
+    empty = "□" * (6 - stat_value)
 
-'''
-FUNCTION get_stats()
-------------------------------
-Reads from tamapy_db.txt:
-- Prints stats for HAPPY, FULL, CLEAN.
-  HEALTH is shown only if it reaches values<=3
-'''
-def get_stats():
-    file = open("tamapy_db.txt", "r")
-    for line in file:
-        if line[0]=="0": #NAME
-            print(line[2:]) # Remove 2 first characters that are the line number
-        elif line[0]=="3":
-            if int(line[9])<=3: #To surprise player SHOW ONLY IF HEALTH<=3
-                healthyness=int(line[9])
-                print_squares(healthyness,"health")
-        elif line[0]=="4": #HAPPY
-            happyness=int(line[8])
-            print_squares(happyness,"happy")
-        elif line[0]=="5": #FULL
-            fullness=int(line[7])
-            print_squares(fullness,"full")
-        elif line[0]=="6": #CLEAN
-            cleanness=int(line[8])
-            print_squares(cleanness,"clean")
-    file.close()
+    if stat_value == 0:
+        icon = "💀"
+    elif stat_value <= 2:
+        icon = "🔴"
+    elif stat_value <= 4:
+        icon = "🟠"
+    else:
+        icon = "🟢"
+
+    print(f"{icon} {label:<7} {filled}{empty}")
 
 
-def play():
-    print("Playing")
+class Tamagotchi:
+    """
+    Tick-based Tamagotchi with slow decay.
 
-'''
-FUNCTION feed()
-------------------------------
-Writes to tamapy_db.txt:
-- Increases FULL by 1.
-- Increases POO by 2. Values range [0-6]
-'''
-def feed():
-    print("Feeding")
-    file_in = open("tamapy_db.txt", "r")
-    file_out = open("tamapy_db.tmp", "wt") 
-    for line in file_in:
-        if line[0]=="5": #FULL status
-            fullness_old = int( line[7] )
-            if 0 <= fullness_old < 5: # Feed only if value between 0 and 4
-                fullness_new = (fullness_old+1) if fullness_old <5 else 5
-                old_str = "5 FULL " + str(fullness_old)
-                new_str = "5 FULL " + str(fullness_new)
-                file_out.write( line.replace(old_str, new_str) )     
-            elif fullness_old == 5: # If fullness already at MAX do not feed
-                file_out.write(line)
-        if line[0]=="7": #POO status
-            poo_old = int( line[6] )
-            if poo_old <6: # Increase only if the value is less than MAX (MAX=6)
-                poo_new = (poo_old+1) if poo_old <6 else 6
-                old_str = "7 POO " + str(poo_old)
-                new_str = "7 POO " + str(poo_new)
-                file_out.write( line.replace(old_str, new_str) )     
-            elif poo_old == 6: # If poo already at MAX do not increase
-                file_out.write(line)
-        elif line[0]!="5":
-            file_out.write(line)
-    file_in.close()
-    file_out.close()
-    os.remove("/home/pau/src/tamapy/tamapy_db.txt")
-    os.rename("/home/pau/src/tamapy/tamapy_db.tmp","tamapy_db.txt")
+    Stats:
+      happy, full, clean, health: 0–6
 
+    Hidden stat:
+      poo: 0–6 (NOT shown to user, NOT saved)
 
-'''
-FUNCTION poop()
-------------------------------
-Writes to tamapy_db.txt:
-- Decreases CLEAN by 1.
-- Decreases FULL by 1.
-'''
-def poop():
-    print("Pooping")
-    file_in = open("tamapy_db.txt", "r")
-    file_out = open("tamapy_db.tmp", "wt") 
-    for line in file_in:
-        # DECREASE FULLNESS BY 1 WHEN POOPING
-        if line[0]=="5": #FULL STATUS
-            fullness_old = int( line[7] )
-            if 0 <= fullness_old <= 5: # Poop only if value between 1 and 5
-                fullness_new = (fullness_old-1) if fullness_old >0 else 0
-                old_str = "5 FULL " + str(fullness_old)
-                new_str = "5 FULL " + str(fullness_new)
-                file_out.write( line.replace(old_str, new_str) )     
-            elif fullness_old == 0: # If fullness at MIN do not decrease FULL
-                file_out.write(line)
-        # DECREEASE CLEANNESS BY 1 WHEN POOPING
-        if line[0]=="6": #CLEAN STATUS
-            cleanness_old = int( line[8] )
-            if 0 <= cleanness_old <=5: # Dirt only if value between 1-5
-                cleanness_new = (cleanness_old-1) if cleanness_old > 0 else 0
-                old_str = "6 CLEAN " + str(cleanness_old)
-                new_str = "6 CLEAN " + str(cleanness_new)
-                file_out.write( line.replace(old_str, new_str) ) 
-        elif line[0]!="5" and line[0]!="6":
-            file_out.write(line)
-    file_in.close()
-    file_out.close()
-    os.remove("/home/pau/src/tamapy/tamapy_db.txt")
-    os.rename("/home/pau/src/tamapy/tamapy_db.tmp","tamapy_db.txt")
+    Death condition:
+      happy == 0 AND health == 0 AND full == 0 AND clean == 0
 
-'''
-FUNCTION clean()
-------------------------------
-Writes to tamapy_db.txt
-- Increases CLEAN by 1.
-'''
-def clean():
-    print("Cleaning")
-    file_in = open("tamapy_db.txt", "r")
-    file_out = open("tamapy_db.tmp", "wt") 
-    for line in file_in:
-        # INCREASE CLEANNESS BY 1
-        if line[0]=="6": #CLEAN STATUS
-            cleanness_old = int( line[8] )
-            if 0 <= cleanness_old < 5: # Clean only if value between 0 and 4
-                cleanness_new = (cleanness_old+1) if cleanness_old <5 else 5
-                old_str = "6 CLEAN " + str(cleanness_old)
-                new_str = "6 CLEAN " + str(cleanness_new)
-                file_out.write( line.replace(old_str, new_str) )    
-            if cleanness_old == 5: # If cleanness at MAX do not clean
-                file_out.write(line) 
-        elif line[0]!="6":
-            file_out.write(line)
-    file_in.close()
-    file_out.close()
-    os.remove("/home/pau/src/tamapy/tamapy_db.txt")
-    os.rename("/home/pau/src/tamapy/tamapy_db.tmp","tamapy_db.txt")
+    Age:
+      +1 pet year every 5 minutes of real time (only while game is running)
+    """
 
-'''
-FUNCTION get_sick()
-------------------------------
-- Decreases HEALTH by 1.
-'''
-def get_sick():
-    print("Getting sick")
-    file_in = open("tamapy_db.txt", "r")
-    file_out = open("tamapy_db.tmp", "wt") 
-    for line in file_in:
-        if line[0]=="3": #HEALTH STATUS
-            healthyness_old = int( line[9] )
-            if 0 <= healthyness_old <= 5: # Get sick only if value between 0 and 4
-                healthyness_new = (healthyness_old-1) if healthyness_old>0 else 0
-                old_str = "3 HEALTH " + str(healthyness_old)
-                new_str = "3 HEALTH " + str(healthyness_new)
-                file_out.write( line.replace(old_str, new_str) )     
-            elif healthyness_old == 0: # If health already at MIN don't decrease
-                file_out.write(line)           
-        elif line[0]!="3":
-            file_out.write(line)
-    file_in.close()
-    file_out.close()
-    os.remove("/home/pau/src/tamapy/tamapy_db.txt")
-    os.rename("/home/pau/src/tamapy/tamapy_db.tmp","tamapy_db.txt")
+    def __init__(self, name: str):
+        self.name = name
+        self.start = datetime.now()
+        self.now = self.start
 
-'''
-FUNCTION take_medicine()
-------------------------------
-- Increases HEALTH by 1.
-'''
-def take_medicine():
-    print("Taking medicine")
-    file_in = open("tamapy_db.txt", "r")
-    file_out = open("tamapy_db.tmp", "wt") 
-    for line in file_in:
-        if line[0]=="3": #HEALTH STATUS
-            healthyness_old = int( line[9] )
-            if 0 <= healthyness_old <= 5: # Cure only if value between 0 and 4
-                healthyness_new = (healthyness_old+1) if healthyness_old>4 else 5
-                old_str = "3 HEALTH " + str(healthyness_old)
-                new_str = "3 HEALTH " + str(healthyness_new)
-                file_out.write( line.replace(old_str, new_str) )     
-            elif healthyness_old == 5: # If health already at MAX don't increase
-                file_out.write(line)           
-        elif line[0]!="3":
-            file_out.write(line)
-    file_in.close()
-    file_out.close()
-    os.remove("/home/pau/src/tamapy/tamapy_db.txt")
-    os.rename("/home/pau/src/tamapy/tamapy_db.tmp","tamapy_db.txt")
+        # Stats
+        self.happy = 6
+        self.full = 6
+        self.clean = 6
+        self.health = 6
 
-'''
-FUNCTION calculate_age()
--------------------------
-Writes do tamapy_db.txt
-updates the AGE.
-Tamapy age correlates to human age.
-'''
-def calculate_age():
-    print("Calculating age")
-    
-    file_in = open("tamapy_db.txt", "r")
-    #file_out = open("tamapy_db.tmp", "wt") 
-    for line in file_in:
-        if line[0]=="8": #Tamapy birth date
-            birth_line = line   
-    file_in.close()
-    birth_date = birth_line.split(',')
-    print("birth_line    " + birth_line + "\n")
-    #print("birth_date    " + birth_date + "\n")
-    print("birth_date[0]    " + birth_date[0] + "\n")
- #   print("birth_date[1]    " + birth_date[1] + "\n")
- #   print("birth_date[2]    " + birth_date[2] + "\n")
-#    print("birth_date[3]    " + birth_date[3] + "\n")
+        # Hidden stat
+        self.poo = 0
 
-    today = date.today()
-    age = relativedelta(today, birth_date[2])
-    return age.years
-    # Test the function
-    birth_date = date(1997, 2, 3)
-    age = calculate_age(birth_date)
-    print(f"Age in years: {age}")    
+        # Age system
+        self.age_years = 0
+        self.last_age_update = self.start
 
-'''
-FUNCTION sleep()
--------------------------
-Writes do tamapy_db.txt:
-- Shows message that the character is sleeping.
-- Switches light on "after" sleeping.
-- If light OFF increases health by 1.
-- If light ON decreases health by 1.
-'''
-def sleep():
-    file_in = open("tamapy_db.txt", "r")
-    file_out = open("tamapy_db.tmp", "wt") 
-    for line in file_in:
-        if line[0]=="0": # Line with the NAME
-            print(line[6:] + "Is sleeping ...")
-            time.sleep(5)    
-            print("  Zzz... zzz... zzz...")
-            time.sleep(5)
-            print("  Zzz... zzz... zzz...")
-        if line[0]=="9": # Line with the LIGHT STATUS
-            light_status = line[8]
-            light_on = "T"
-            old_str = "9 LIGHT " + str(light_status)
-            new_str = "9 LIGHT " + str(light_on)
-            file_out.write( line.replace(old_str, new_str) )    
-        elif line[0]=="3" and light_status=="T": # Get sick only if light ON
-            healthyness_old = int(line[9])
-            healthyness_new = (healthyness_old-1) if healthyness_old>0 else 0
-            old_str = "3 HEALTH " + str(healthyness_old)
-            new_str = "3 HEALTH " + str(healthyness_new)
-            file_out.write( line.replace(old_str, new_str) )     
-            if healthyness_old == 0: # If health already at MIN don't decrease
-                file_out.write(line)           
-        elif line[0]!="3":
-            file_out.write(line)
-    file_in.close()
-    file_out.close()
-    os.remove("/home/pau/src/tamapy/tamapy_db.txt")
-    os.rename("/home/pau/src/tamapy/tamapy_db.tmp","tamapy_db.txt")
+        # Tick counter
+        self.tick_count = 0
 
+    @property
+    def is_dead(self):
+        return (
+            self.happy == 0
+            and self.health == 0
+            and self.full == 0
+            and self.clean == 0
+        )
 
-'''
-FUNCTION light_off()
--------------------------
-Writes do tamapy_db.txt:
-- Updates LIGTH to "T" (true).
-'''
-def light_off():
-    print("Switching light off")
-    file_in = open("tamapy_db.txt", "r")
-    file_out = open("tamapy_db.tmp", "wt") 
-    for line in file_in:
-        if line[0]=="9": #Light STATUS
-            light_old = line[8]
-            if light_old=="F": # Switch off only if LIGHT==T; T means true
-                light_new = "T"
-                old_str = "6 CLEAN " + str(light_old)
-                new_str = "6 CLEAN " + str(light_new)
-                file_out.write( line.replace(old_str, new_str) )    
-            if light_old =="T": # If light already ON do not switch ON
-                file_out.write(line) 
-        elif line[0]!="6":
-            file_out.write(line)
-    file_in.close()
-    file_out.close()
-    os.remove("/home/pau/src/tamapy/tamapy_db.txt")
-    os.rename("/home/pau/src/tamapy/tamapy_db.tmp","tamapy_db.txt")
+    def _dec_stat(self, attr):
+        value = getattr(self, attr)
+        if value > 0:
+            setattr(self, attr, value - 1)
 
+    def _inc_stat(self, attr):
+        value = getattr(self, attr)
+        if value < 6:
+            setattr(self, attr, value + 1)
 
-'''
+    # Actions
 
-- When POO==6 poo() function is called.
+    def feed(self):
+        if not self.is_dead:
+            self._inc_stat("full")
 
-'''
+    def clean_poo(self):
+        if not self.is_dead:
+            if self.poo > 0:
+                self.poo -= 1
+            self._inc_stat("clean")
 
-'''
-TO DO 
-- clear screen
-- menu for actions
-- generic home directory path
-- fix calculate age()
-- fix sleep()
-- create test suite
-'''
+    def take_medicine(self):
+        """
+        Medicine heals AND cures sickness by resetting poo.
+        """
+        if not self.is_dead:
+            self._inc_stat("health")
+            self.poo = 0  # cure sickness source
+
+    def play(self):
+        if not self.is_dead:
+            self._inc_stat("happy")
+
+    # Age system
+
+    def update_age(self):
+        now = datetime.now()
+        elapsed_minutes = (now - self.last_age_update).total_seconds() / 60
+
+        if elapsed_minutes >= 5:
+            gained_years = int(elapsed_minutes // 5)
+            self.age_years += gained_years
+            self.last_age_update = now
+
+    # Tick logic
+
+    def tick(self):
+        if self.is_dead:
+            return
+
+        self.tick_count += 1
+        self.now = datetime.now()
+
+        # Update age
+        self.update_age()
+
+        # Poo increases every 2 ticks (hidden)
+        if self.tick_count % 2 == 0 and self.poo < 6:
+            self.poo += 1
+
+        # Natural sickness: poo >= 3
+        if self.poo >= 3:
+            self._dec_stat("health")
+
+        # Slow decay: rotate stats
+        order = ["happy", "full", "clean", "health"]
+        idx = (self.tick_count - 1) % len(order)
+        target = order[idx]
+
+        if target == "health":
+            if self.health <= 2 and self.health > 0:
+                self._dec_stat("health")
+        else:
+            self._dec_stat(target)
+
+        # If poo maxed, cleanliness drops
+        if self.poo == 6 and self.clean > 0:
+            self._dec_stat("clean")
+
+    # Persistence
+
+    def to_dict(self):
+        return {
+            "name": self.name,
+            "start": self.start.isoformat(),
+            "now": self.now.isoformat(),
+            "happy": self.happy,
+            "full": self.full,
+            "clean": self.clean,
+            "health": self.health,
+            "tick_count": self.tick_count,
+            "age_years": self.age_years,
+            "last_age_update": self.last_age_update.isoformat(),
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        obj = cls(data["name"])
+        obj.start = datetime.fromisoformat(data["start"])
+        obj.now = datetime.fromisoformat(data["now"])
+        obj.happy = data["happy"]
+        obj.full = data["full"]
+        obj.clean = data["clean"]
+        obj.health = data["health"]
+        obj.tick_count = data.get("tick_count", 0)
+        obj.age_years = data.get("age_years", 0)
+        obj.last_age_update = datetime.fromisoformat(
+            data.get("last_age_update", data["now"])
+        )
+
+        # Hidden stat resets on load
+        obj.poo = 0
+
+        return obj
+
+    def save(self, path: str = SAVE_FILE):
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(self.to_dict(), f, indent=2)
+
+    @staticmethod
+    def load(path: str = SAVE_FILE):
+        if not os.path.exists(path):
+            return None
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return Tamagotchi.from_dict(data)
+
+    # UI
+
+    def print_status(self):
+        print(f"\n=== {self.name}'s status ===")
+        print(f"Age: {self.age_years} 🐾")
+        print_squares(self.happy, "happy")
+        print_squares(self.full, "full")
+        print_squares(self.clean, "clean")
+        print_squares(self.health, "health")
+
+        if self.is_dead:
+            print("\n💀 Your Tamapy has died. Game over.\n")
+
 
 def main():
+    print("🐣 Welcome to Tamapy!\n")
 
+    tama = Tamagotchi.load()
+    if tama:
+        print(f"Loaded existing Tamapy: {tama.name}")
+    else:
+        name = input("Choose a name for your Tamapy: ").strip()
+        if not name:
+            name = "Tamapy"
+        tama = Tamagotchi(name)
+        tama.save()
 
-#    linecache.clearcache()
-#    lay_egg("★☆. · · ·.☆★BiZC0CHiT0oo0★☆. · · ·.☆★")
-# Clearing the Screen
-#   os.system('cls')
+    while True:
+        tama.print_status()
+        if tama.is_dead:
+            break
 
-    sleep()
+        print("What do you want to do?")
+        print("[f]eed  [p]lay  [c]lean  [m]edicine  [q]uit")
+        choice = input("> ").strip().lower()
 
-#    calculate_age()
+        if choice == "f":
+            tama.feed()
+        elif choice == "p":
+            tama.play()
+        elif choice == "c":
+            tama.clean_poo()
+        elif choice == "m":
+            tama.take_medicine()
+        elif choice == "q":
+            print("Saving and quitting...")
+            tama.save()
+            break
+        else:
+            print("Unknown action.")
+            continue
 
-# TEST GET_SICK
-    '''
-    get_stats()
-    get_sick()
-    get_stats()
-    get_sick()
-    get_stats()
-    get_sick()
-    get_stats()
-    get_sick()
-    get_stats()
-    get_sick()
-    get_stats()
-    get_sick()
-    get_stats()
-    get_sick()
-    get_stats()
-    get_sick()
-    ''' 
-# TEST CLEAN
-    '''
-    get_stats()
-    clean()
-    get_stats()
-    clean()
-    get_stats()
-    clean()
-    get_stats()
-    clean()
-    get_stats()
-    clean()
-    get_stats()
-    clean()
-    get_stats()
-    clean()
-    get_stats()
-    '''
+        tama.tick()
+        tama.save()
 
-# TEST POOP
-    '''
-    get_stats()
-    feed()
-    get_stats()
-    poop()
-    get_stats()
-    poop()
-    get_stats()
-    poop()
-    get_stats()
-    poop()
-    get_stats()
-    poop()
-    get_stats()
-    poop()
-    get_stats()
-    poop()
-    get_stats()
-    '''
 
 if __name__ == "__main__":
     main()
