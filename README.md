@@ -1,38 +1,261 @@
-# Background
-Tamagotchi is a virtual pet simulation game popular during the 90s.
+# 🐣 Tamapy: a Python3 Tamagotchi.
 
-Tamagotchis are a small alien species that deposited an egg on Earth to see what life was like, and it is up to the player to raise the egg into an adult creature.
-The creature goes through several stages of growth, and will develop differently depending on the care the player provides, with better care resulting in an adult creature that is smarter, happier, and requires less attention.
+A simple tick‑based Tamagotchi you can play in the terminal.
 
-The original Tamagotchi has the following functionalities:
-- **Feed:** You can select either Meal or Snack. Make sure not to overfeed your character or they will refuse to eat.
-- **Light:** Turn the light off when the character is asleep or it might get restless. The light will automatically come on once awake.
-- **Duck:** When it goes to the bathroom, select the Duck icon to flush the screen.
-- **Health Meter:** Shows character’s age/weight, discipline, hunger, and happiness.
-- **Play:** Select the bat and ball icon to begin the game. The more times you guess correctly each game, the happier your character will be.
-- **Medicine:** If you see a ‘skull’ image on your screen, it means the character is sick and needs medicine. It may take more than one dose to fully get it back to full health.
-- **Attention:** If it beeps and the “Attention” icon is highlighted, check the Health Meter to see what they need. If they don’t need anything, you must discipline the character.
-- **Discipline:** Use it if it beeps when happy, won’t eat when hungry, or won’t play games when unhappy. Not discipling it can result in bad manners.
+Based on the original one (see picture below) but simpler.
+
 
 ![Tamagotchi instructions](instruction.png)
 
+## Features
 
-# What is Tamapy
-This repo holds the python code for my take on a virtual pet based on Tamagotchi, but simpler.
+- Stats range 0–6
+- Hidden “poo” mechanic affects sickness and cleanliness
+- Poo is **not shown** to the user and **not saved**
+- Medicine now **cures sickness** by resetting poo
+- Age increases only while playing (+1 pet year every 5 minutes)
+- State saved in JSON
+- 6‑square stat bars
+- Fully interactive CLI
 
-This is a "play around with python" personal project, do not expect super advanced options.
 
-If you want to play with a real Tamagotchi you can buy one, since they survived through the 90s to our days and are still available for purchase!
 
-# How to play
-You need to install python3 on your system and the following libraries using pip:
+## How to run
+```python tamagotchi.py```
 
-`pip install requests datetime`
+If you want to start a new tamapy, just delete the tamapy_state.json file.
 
-Make sure to install these libraries before running the program.
 
-If you want to play I won't ruin the fun explaining the logic here, but of course you can have a look at the code if you want to.
+## System Design
 
-To play, run the command:
+### State machine definition
 
-`python3 tamapy.py`
+Tamapy is fundamentally a finite‑state machine whose state is defined by four visible stats and one hidden stat:
+Visible state variables (0–6):
+- happy
+- full
+- clean
+- healthy
+
+Hidden state variable (0–6): poo (not shown to the user, not saved)
+
+Meta‑state variables:
+- age_years (integer)
+- last_age_update (timestamp)
+- tick_count (integer)
+- now (timestamp)
+- start (timestamp)
+
+The Tamapy is dead when:
+```happy == 0 AND full == 0 AND clean == 0 AND health == 0```
+
+This is the only absorbing state in the machine.
+
+
+
+### State transitions
+
+Every user action and every tick moves the Tamapy from one state to another.
+User‑driven transitions, each action modifies exactly one stat:
+
+| Action|Effect|
+|---|---|
+|feed|full +1|
+|play|happy +1|
+|clean|clean +1, poo -1|
+|medicine|health +1, poo reset to 0|
+
+All increments are capped at 6.
+
+
+
+### Tick‑driven transitions
+
+Every loop iteration triggers a tick, which applies:
+
+    Age update  
+    Every 5 minutes → age_years +1.
+
+    Poo accumulation  
+    Every 2 ticks → poo +1 (max 6).
+
+    Sickness logic  
+    If poo ≥ 3 → health -1.
+
+    Rotational decay  
+    One stat decreases each tick in this order: happy → full → clean → health → repeat
+    Health only decays in rotation if health ≤ 2.
+
+    Dirty penalty  
+    If poo == 6 → clean -1.
+
+This creates a slow, predictable decay cycle with a hidden sickness mechanic.
+
+
+
+### Hidden poo mechanic
+Although poo is not shown to the user and not saved, it remains a core internal driver of difficulty:
+
+    It accumulates automatically.
+
+    It triggers sickness.
+
+    It dirties the Tamapy when maxed.
+
+    Cleaning reduces it.
+
+    Medicine resets it.
+
+This creates a feedback loop:
+    
+    poo ↑ → sickness ↑ → health ↓ → medicine → poo reset → cycle repeats
+
+
+
+### Persistence model
+
+Only long‑term state is saved:
+
+    name, happy, full, clean, health, tick_count, age_years, last_age_update, timestamps
+
+Not saved:
+
+    poo (always resets to 0 on load)
+
+This keeps the save file simple and avoids exposing hidden mechanics.
+
+
+
+### UI model
+
+The UI is intentionally minimal:
+
+    Shows age as: Age: X 🐾
+
+    Shows four stat bars (6 squares each)
+
+    Does not show poo
+
+    Does not show internal sickness state
+
+    Does not show tick count
+
+This keeps the game readable and cute while hiding complexity.
+
+
+
+### Game loop
+
+The main loop follows a simple pattern:
+```
+load state
+while alive:
+    show status
+    get user action
+    apply action
+    tick()
+    save state
+```
+This ensures:
+- Every action advances time
+- Every action triggers decay
+- State is always saved after each turn
+
+
+
+### Design philosophy
+
+The design intentionally blends:
+
+#### Simplicity
+- Only four visible stats.
+- One hidden stat.
+- One terminal condition.
+- One tick per action.
+
+#### Depth
+- Hidden sickness mechanic.
+- Rotational decay.
+- Age progression.
+- Medicine curing sickness.
+- Cleaning reducing hidden poo.
+
+#### Predictability
+- Decay is deterministic.
+- Sickness is deterministic.
+- Age progression is deterministic.
+
+#### Player Feedback
+- The player sees the consequences (health dropping, clean dropping) without seeing the hidden cause (poo).
+- This creates a subtle “mystery” effect similar to early Tamagotchis.
+
+
+
+### Component architecture diagram
+
+```
+        USER INTERFACE LAYER
+    
+      CLI Menu
+      Status Renderer
+      Stat Bars
+      Age Display
+    
+                │
+                ▼
+    
+        GAME CONTROLLER
+          (main loop)
+    
+       Load State
+       Show Status
+       Read Input
+       Dispatch Actions
+       Tick()
+       Save State
+    
+                │
+                ▼
+    
+        TAMAGOTCHI MODEL                         
+      
+      State Variables:                  
+        • happy, full, clean, health 0–6
+        • poo (hidden)                  
+        • age_years                     
+        • tick_count                    
+        • timestamps                    
+                                        
+      Actions:                          
+        • feed()                        
+        • play()                        
+        • clean_poo()                   
+        • take_medicine()               
+                                        
+      Tick Engine:                      
+        • update_age()                  
+        • poo accumulation              
+        • sickness logic                
+        • rotational decay              
+        • cleanliness penalty           
+                                        
+      Death Check:                      
+        • is_dead()                     
+
+                │
+                ▼
+
+        PERSISTENCE LAYER            
+     
+      Serialization:
+        • to_dict()
+        • from_dict()
+              
+      Storage:
+        • JSON File: tamapy_state.json
+            
+      Rules:
+        • poo NOT saved
+        • poo resets on load   
+    
+```
