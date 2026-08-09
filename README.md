@@ -193,69 +193,81 @@ The design intentionally blends:
 
 ### Component architecture diagram
 
-```
-        USER INTERFACE LAYER
-    
-      CLI Menu
-      Status Renderer
-      Stat Bars
-      Age Display
-    
-                │
-                ▼
-    
-        GAME CONTROLLER
-          (main loop)
-    
-       Load State
-       Show Status
-       Read Input
-       Dispatch Actions
-       Tick()
-       Save State
-    
-                │
-                ▼
-    
-        TAMAGOTCHI MODEL                         
-      
-      State Variables:                  
-        • happy, full, clean, health 0–6
-        • poo (hidden)                  
-        • age_years                     
-        • tick_count                    
-        • timestamps                    
-                                        
-      Actions:                          
-        • feed()                        
-        • play()                        
-        • clean_poo()                   
-        • take_medicine()               
-                                        
-      Tick Engine:                      
-        • update_age()                  
-        • poo accumulation              
-        • sickness logic                
-        • rotational decay              
-        • cleanliness penalty           
-                                        
-      Death Check:                      
-        • is_dead()                     
+```mermaid
+flowchart TD
+    subgraph UI["USER INTERFACE LAYER"]
+        UI1[CLI Menu]
+        UI2[Status Renderer]
+        UI3[Stat Bars]
+        UI4[Age Display]
+    end
 
-                │
-                ▼
+    subgraph GC["GAME CONTROLLER (main loop)"]
+        GC1[Load State]
+        GC2[Show Status]
+        GC3[Read Input]
+        GC4[Dispatch Actions]
+        GC5[Tick]
+        GC6[Save State]
+    end
 
-        PERSISTENCE LAYER            
-     
-      Serialization:
-        • to_dict()
-        • from_dict()
-              
-      Storage:
-        • JSON File: tamapy_state.json
-            
-      Rules:
-        • poo NOT saved
-        • poo resets on load   
-    
+    subgraph TM["TAMAGOTCHI MODEL"]
+        direction TB
+        subgraph SV["State Variables"]
+            SV1["happy, full, clean, health 0–6"]
+            SV2["poo (hidden)"]
+            SV3[age_years]
+            SV4[tick_count]
+            SV5[timestamps]
+        end
+        subgraph AC["Actions"]
+            AC1["feed()"]
+            AC2["play()"]
+            AC3["clean_poo()"]
+            AC4["take_medicine()"]
+        end
+        subgraph TE["Tick Engine"]
+            TE1["update_age()"]
+            TE2[poo accumulation]
+            TE3[sickness logic]
+            TE4[rotational decay]
+            TE5[cleanliness penalty]
+        end
+        subgraph DC["Death Check"]
+            DC1["is_dead()"]
+        end
+    end
+
+    subgraph PL["PERSISTENCE LAYER"]
+        subgraph SER["Serialization"]
+            SER1["to_dict()"]
+            SER2["from_dict()"]
+        end
+        subgraph ST["Storage"]
+            ST1["JSON File: tamapy_state.json"]
+        end
+        subgraph RL["Rules"]
+            RL1[poo NOT saved]
+            RL2[poo resets on load]
+        end
+    end
+
+    UI --> GC
+    GC --> TM
+    TM --> PL
+
+    %% Top-level layers (UI, GC keep original color; TM, PL take sub-group color)
+    classDef bigLayer fill:#C9BDD0,stroke:#534AB7,stroke-width:1px,color:#26215C
+    class UI,GC bigLayer
+
+    classDef swappedLayer fill:#FDF1F2,stroke:#D4537E,stroke-width:1px,color:#72243E
+    class TM,PL swappedLayer
+
+    %% Sub-groupings (SV, AC, TE, DC, SER, ST, RL take top-level layer color)
+    classDef swappedGroup fill:#C9BDD0,stroke:#534AB7,stroke-width:1px,color:#26215C
+    class SV,AC,TE,DC,SER,ST,RL swappedGroup
+
+    %% Smallest boxes: individual items
+    classDef smallItem fill:#FFB2D0,stroke:#993556,stroke-width:1px,color:#4B1528
+    class UI1,UI2,UI3,UI4,GC1,GC2,GC3,GC4,GC5,GC6,SV1,SV2,SV3,SV4,SV5,AC1,AC2,AC3,AC4,TE1,TE2,TE3,TE4,TE5,DC1,SER1,SER2,ST1,RL1,RL2 smallItem
 ```
