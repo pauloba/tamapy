@@ -1,4 +1,4 @@
-# 🐣 Tamapy: a Python3 Tamagotchi.
+# Tamapy: a Python3 Tamagotchi.
 
 A simple tick‑based Tamagotchi you can play in the terminal.
 
